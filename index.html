@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a2e">
+<title>🏁 Поцелуйная гонка</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+  html,body{width:100%;height:100%;overflow:hidden}
+  body{background:#0a0a2e;font-family:'Arial Black',Arial,sans-serif;touch-action:none;position:fixed;inset:0;color:#fff}
+  #gameCanvas{display:block;width:100%;height:100%;touch-action:none}
+  .screen{position:absolute;inset:0;display:none;flex-direction:column;justify-content:center;align-items:center;z-index:10;padding:18px;text-align:center}
+  .screen.active{display:flex}
+  #startScreen{background:linear-gradient(135deg,#667eea 0%,#764ba2 50%,#f093fb 100%)}
+  .title{font-size:clamp(24px,7vw,40px);text-shadow:0 0 20px #ff6b9d,0 0 40px #ff6b9d;margin-bottom:8px;animation:pulse 2s infinite}
+  .subtitle{font-size:clamp(14px,4vw,18px);margin-bottom:16px;opacity:.92}
+  .rules{background:rgba(0,0,0,.22);border-radius:16px;padding:14px 16px;margin-bottom:16px;font-size:clamp(12px,3.4vw,14px);line-height:1.8;max-width:340px;text-align:left}
+  .rules b{color:#ffd93d}
+  .nameInput{width:min(80vw,300px);padding:14px;border:none;border-radius:25px;font-size:16px;text-align:center;margin-bottom:14px;background:rgba(255,255,255,.92);color:#333;outline:none;font-family:inherit}
+  .playBtn{padding:18px 50px;font-size:clamp(18px,5vw,24px);background:linear-gradient(135deg,#ff6b9d,#ff8e53);color:#fff;border:none;border-radius:50px;cursor:pointer;box-shadow:0 10px 30px rgba(255,107,157,.5);animation:bounce 1.5s infinite;font-weight:bold;font-family:inherit}
+  .playBtn:active{transform:scale(.95)}
+  .bestLine{margin-top:14px;font-size:14px;color:#ffd93d;opacity:.9}
+  #hud{position:absolute;top:0;left:0;width:100%;padding:12px 15px;z-index:5;display:none;pointer-events:none}
+  #hud.active{display:block}
+  .stats{display:flex;justify-content:space-between;font-size:clamp(12px,3.4vw,15px);text-shadow:0 2px 6px rgba(0,0,0,.7);gap:4px}
+  .stat b{color:#ffd93d}
+  #endScreen{background:linear-gradient(135deg,#ff6b9d 0%,#f093fb 50%,#ffd93d 100%)}
+  .endTitle{font-size:clamp(22px,6.5vw,34px);text-shadow:0 0 30px #fff;margin-bottom:12px;animation:zoomIn .5s;line-height:1.3}
+  .resBox{background:#fff;color:#333;padding:22px 18px;border-radius:20px;margin:8px;box-shadow:0 20px 60px rgba(0,0,0,.3);animation:slideUp .8s;max-width:340px;width:100%}
+  .resRow{font-size:clamp(15px,4.4vw,21px);margin:7px 0}
+  .resRow b{color:#ff6b9d}
+  .verdict{font-size:clamp(15px,4.2vw,18px);color:#764ba2;margin-top:12px;font-style:italic;line-height:1.4}
+  .newBest{color:#e67e22;font-weight:bold;margin-top:8px;font-size:15px}
+  .sendNote{font-size:12px;color:#888;margin-top:10px}
+  .bg{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:1}
+  .fl{position:absolute;animation:floatHeart 9s linear infinite;opacity:.5}
+  #errBox{position:fixed;left:8px;right:8px;bottom:8px;z-index:99;background:#c0392b;color:#fff;padding:10px 12px;border-radius:12px;font-size:12px;font-family:monospace;display:none;word-break:break-all;box-shadow:0 6px 20px rgba(0,0,0,.5)}
+  @keyframes floatHeart{0%{transform:translateY(110vh) rotate(0);opacity:0}10%{opacity:.6}90%{opacity:.6}100%{transform:translateY(-12vh) rotate(360deg);opacity:0}}
+  @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+  @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+  @keyframes zoomIn{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+  @keyframes slideUp{from{transform:translateY(50px);opacity:0}to{transform:translateY(0);opacity:1}}
+</style>
+</head>
+<body>
+  <div class="bg" id="bg"></div>
+  <div id="errBox"></div>
+
+  <div id="startScreen" class="screen active">
+    <div class="title">🏁 ПОЦЕЛУЙНАЯ ГОНКА</div>
+    <div class="subtitle">Объезжай ссоры, собирай любовь</div>
+    <div class="rules">
+      👈👉 <b>Клик/тап</b> по левой или правой половине = перестроение<br>
+      ⌨️ На ноуте: <b>← →</b> или <b>A / D</b>, старт — <b>пробел</b><br>
+      ⚡ Объезжай <b>машины-ссоры 😾⚡</b><br>
+      💝 Сердечко = <b>+1 желание</b> · 💋 Поцелуй = <b>+желание +поцелуй</b>
+    </div>
+    <input class="nameInput" id="nameInput" placeholder="Как тебя зовут? 🐱" maxlength="20">
+    <button class="playBtn" id="playBtn">В ГОНКУ 🏎️</button>
+    <div class="bestLine" id="bestLine"></div>
+  </div>
+
+  <div id="hud">
+    <div class="stats">
+      <span class="stat">💝 <b id="score">0</b></span>
+      <span class="stat">💋 <b id="kis">0</b></span>
+      <span class="stat">🏁 <b id="dist">0</b>м</span>
+    </div>
+  </div>
+
+  <canvas id="gameCanvas"></canvas>
+
+  <div id="endScreen" class="screen">
+    <div class="endTitle" id="endTitle">💥 Авария!</div>
+    <div class="resBox">
+      <div class="resRow">💝 Желаний: <b id="endScore">0</b></div>
+      <div class="resRow">💋 Поцелуев: <b id="endKis">0</b></div>
+      <div class="resRow">🏁 Дистанция: <b id="endDist">0</b> м</div>
+      <div class="resRow">🏆 Рекорд: <b id="endBest">0</b> м</div>
+      <div class="newBest" id="newBest" style="display:none">🎉 НОВЫЙ РЕКОРД!</div>
+      <div class="verdict" id="verdict"></div>
+      <div class="sendNote" id="sendNote">📩 отправляю результат любимому…</div>
+    </div>
+    <button class="playBtn" id="againBtn">ЕЩЁ РАЗ 🔁</button>
+  </div>
+
+<script>
+// ===== показ любой ошибки скрипта красным блоком внизу =====
+window.onerror=function(msg,src,line){
+  var b=document.getElementById('errBox');
+  if(b){b.style.display='block';b.textContent='⚠ ОШИБКА: '+msg+' (строка '+line+')';}
+};
+
+// ===== Telegram =====
+var TG_TOKEN='8896892259:AAH6ug_reTRIsnwg0_SacJED89huHmk8qtc';
+var TG_CHAT='5715042754';
+
+// ===== фон =====
+(function(){var bg=document.getElementById('bg');var e=['💕','💖','💗','💝','💞','💘'];for(var i=0;i<16;i++){var d=document.createElement('div');d.className='fl';d.textContent=e[i%e.length];d.style.left=Math.random()*100+'%';d.style.fontSize=(14+Math.random()*22)+'px';d.style.animationDelay=Math.random()*9+'s';d.style.animationDuration=(7+Math.random()*6)+'s';bg.appendChild(d);}})();
+
+var canvas=document.getElementById('gameCanvas');
+var ctx=canvas.getContext('2d');
+
+// ===== геометрия =====
+var roadX=0,roadW=0,laneW=0,lanes=[0,0,0],carY=0,carW=0,carH=0;
+function layout(){
+  roadW=Math.min(canvas.width*0.94,420);
+  roadX=(canvas.width-roadW)/2;
+  laneW=roadW/3;
+  lanes=[roadX+laneW*0.5,roadX+laneW*1.5,roadX+laneW*2.5];
+  carW=laneW*0.62; carH=carW*1.5;
+  carY=canvas.height-carH-30;
+}
+function resize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;layout();}
+resize();
+window.addEventListener('resize',resize);
+window.addEventListener('orientationchange',function(){setTimeout(resize,200);});
+
+// ===== состояние =====
+var LANES=3;
+var state='menu';
+var name='',score=0,kis=0,dist=0,run=1,best=+(localStorage.getItem('race_best')||0);
+var player={lane:1,x:0};
+var cars=[],pickups=[],parts=[],lights=[],frame=0,rafId=null,readyT=0;
+var speed=3.2,spawnGap=300,sinceSpawn=0,markOffset=0;
+
+function $(id){return document.getElementById(id);}
+function show(id){var ss=document.querySelectorAll('.screen');for(var i=0;i<ss.length;i++)ss[i].classList.remove('active');if(id)$(id).classList.add('active');}
+
+function initLights(){lights=[];for(var i=0;i<14;i++)lights.push({side:Math.random()<.5?-1:1,y:Math.random()*canvas.height,s:Math.random()*0.6+0.4,size:Math.random()*3+2});}
+initLights();
+function burst(x,y,color,n){for(var i=0;i<n;i++)parts.push({x:x,y:y,vx:(Math.random()-.5)*7,vy:(Math.random()-.5)*7-1,life:1,color:color,size:Math.random()*4+2});}
+function laneX(l){return lanes[l];}
+function hMath(){return 40+Math.random()*60;}
+
+function resetRun(){
+  layout();
+  player.lane=1;player.x=lanes[1];
+  cars=[];pickups=[];parts=[];frame=0;score=0;kis=0;dist=0;
+  speed=3.2;spawnGap=300;sinceSpawn=spawnGap*0.5;markOffset=0;
+  updateHUD();
+}
+
+function spawnWave(){
+  var count=Math.random()<0.45?2:1;
+  var pool=[0,1,2];
+  for(var i=pool.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=pool[i];pool[i]=pool[j];pool[j]=t;}
+  var chosen=pool.slice(0,count);
+  var free=[];for(var k=0;k<pool.length;k++){if(chosen.indexOf(pool[k])<0)free.push(pool[k]);}
+  for(var c=0;c<chosen.length;c++){
+    cars.push({lane:chosen[c],y:-carH-hMath(),type:Math.random()<0.5?'angry':'storm'});
+  }
+  if(free.length&&Math.random()<0.6){
+    var bl=free[Math.floor(Math.random()*free.length)];
+    var kind=Math.random()<0.35?'kiss':'wish';
+    pickups.push({lane:bl,y:-carH-hMath()-120,kind:kind,taken:false});
+  }
+}
+
+function move(dir){
+  if(state!=='play')return;
+  var nl=Math.max(0,Math.min(LANES-1,player.lane+dir));
+  if(nl!==player.lane){player.lane=nl;if(navigator.vibrate){try{navigator.vibrate(12);}catch(e){}}}
+}
+
+// ===== управление (мышь + тап + клавиатура) =====
+function onPointer(e){
+  if(e&&e.preventDefault)e.preventDefault();
+  if(state==='ready'){state='play';return;}
+  if(state!=='play')return;
+  var x;
+  if(e&&typeof e.clientX==='number'){x=e.clientX;}
+  else if(e&&e.touches&&e.touches[0]){x=e.touches[0].clientX;}
+  else return;
+  move(x<canvas.width/2?-1:1);
+}
+canvas.addEventListener('pointerdown',onPointer,{passive:false});
+canvas.addEventListener('touchstart',function(e){e.preventDefault();onPointer(e.touches[0]?{clientX:e.touches[0].clientX,preventDefault:function(){}}:null);},{passive:false});
+canvas.addEventListener('mousedown',function(e){e.preventDefault();onPointer(e);});
+document.addEventListener('keydown',function(e){
+  if(e.code==='ArrowLeft'||e.code==='KeyA'){e.preventDefault();if(state==='ready')state='play';else move(-1);}
+  else if(e.code==='ArrowRight'||e.code==='KeyD'){e.preventDefault();if(state==='ready')state='play';else move(1);}
+  else if(e.code==='Space'||e.code==='ArrowUp'){e.preventDefault();if(state==='ready')state='play';}
+});
+document.addEventListener('touchmove',function(e){e.preventDefault();},{passive:false});
+document.addEventListener('gesturestart',function(e){e.preventDefault();});
+
+function rects(a,b){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;}
+
+function die(){
+  if(state==='dead')return;
+  state='dead';
+  burst(player.x,carY+carH/2,'#ff4757',26);
+  if(navigator.vibrate){try{navigator.vibrate([40,50,40]);}catch(e){}}
+  var m=Math.floor(dist);
+  var isNew=m>best;
+  if(isNew){best=m;localStorage.setItem('race_best',best);}
+  setTimeout(function(){endRun(isNew);},550);
+}
+
+function update(){
+  frame++;
+  for(var li=0;li<lights.length;li++){var l=lights[li];l.y+=speed*l.s*1.6;if(l.y>canvas.height+10){l.y=-10;l.side=Math.random()<.5?-1:1;}}
+  var np=[];for(var pi=0;pi<parts.length;pi++){var p=parts[pi];p.x+=p.vx;p.y+=p.vy;p.vy+=0.18;p.life-=0.025;if(p.life>0)np.push(p);}parts=np;
+
+  if(state==='ready'){readyT++;player.x=lanes[1];return;}
+  if(state!=='play')return;
+
+  speed=Math.min(7.5,3.2+dist*0.0016);
+  dist+=speed*0.18;
+  markOffset=(markOffset+speed)%48;
+  spawnGap=Math.max(150,300-dist*0.012);
+  sinceSpawn+=speed;
+
+  player.x+=(laneX(player.lane)-player.x)*0.28;
+
+  if(sinceSpawn>=spawnGap){sinceSpawn=0;spawnWave();}
+
+  var pb={x:player.x-carW/2,y:carY,w:carW,h:carH};
+  var nc=[];
+  for(var ci=0;ci<cars.length;ci++){
+    var c=cars[ci];c.y+=speed;
+    var cb={x:laneX(c.lane)-carW/2,y:c.y,w:carW,h:carH};
+    if(rects(pb,cb)){die();return;}
+    if(c.y<canvas.height+carH+40)nc.push(c);
+  }
+  cars=nc;
+
+  var nk=[];
+  for(var ki=0;ki<pickups.length;ki++){
+    var pk=pickups[ki];pk.y+=speed;
+    if(pk.taken)continue;
+    var b={x:laneX(pk.lane)-22,y:pk.y,w:44,h:44};
+    if(rects(pb,b)){
+      pk.taken=true;
+      if(pk.kind==='kiss'){kis++;score++;burst(laneX(pk.lane),pk.y+22,'#ff6b9d',16);if(navigator.vibrate){try{navigator.vibrate(25);}catch(e){}}}
+      else{score++;burst(laneX(pk.lane),pk.y+22,'#ffd93d',12);}
+      updateHUD();
+    }
+    if(pk.y<canvas.height+60)nk.push(pk);
+  }
+  pickups=nk;
+  updateHUD();
+}
+
+// ===== рисование =====
+function roundRect(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+function drawRoad(){
+  var g=ctx.createLinearGradient(roadX,0,roadX+roadW,0);
+  g.addColorStop(0,'#241a3e');g.addColorStop(.5,'#322452');g.addColorStop(1,'#241a3e');
+  ctx.fillStyle=g;ctx.fillRect(roadX,0,roadW,canvas.height);
+  ctx.strokeStyle='#ff6b9d';ctx.lineWidth=4;
+  ctx.beginPath();ctx.moveTo(roadX,0);ctx.lineTo(roadX,canvas.height);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(roadX+roadW,0);ctx.lineTo(roadX+roadW,canvas.height);ctx.stroke();
+  ctx.strokeStyle='rgba(255,255,255,.5)';ctx.lineWidth=3;ctx.setLineDash([26,22]);ctx.lineDashOffset=-markOffset;
+  for(var i=1;i<LANES;i++){var x=roadX+laneW*i;ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke();}
+  ctx.setLineDash([]);
+}
+function drawSideLights(){
+  for(var i=0;i<lights.length;i++){var l=lights[i];
+    var x=l.side<0?roadX-12:roadX+roadW+12;
+    ctx.fillStyle=l.s>0.8?'#ffd93d':'#a55eea';
+    ctx.globalAlpha=0.5+l.s*0.5;
+    ctx.beginPath();ctx.arc(x,l.y,l.size,0,7);ctx.fill();
+  }
+  ctx.globalAlpha=1;
+}
+function drawCar(cx,cy,w,h,kind){
+  ctx.save();ctx.translate(cx,cy);
+  var isP=kind==='player';
+  var body=isP?'#ff5e9c':(kind==='storm'?'#7a6a8e':'#9e5566');
+  var roof=isP?'#ff8fb3':(kind==='storm'?'#5b4a6e':'#7a3d4d');
+  ctx.fillStyle='rgba(0,0,0,.35)';ctx.beginPath();ctx.ellipse(0,h*0.5,w*0.5,h*0.12,0,0,7);ctx.fill();
+  roundRect(-w/2,-h/2,w,h,w*0.28);ctx.fillStyle=body;ctx.fill();
+  ctx.strokeStyle=isP?'#fff':'rgba(255,255,255,.4)';ctx.lineWidth=2.5;ctx.stroke();
+  roundRect(-w*0.34,-h*0.32,w*0.68,h*0.5,w*0.16);ctx.fillStyle=roof;ctx.fill();
+  roundRect(-w*0.3,-h*0.3,w*0.6,h*0.22,w*0.1);ctx.fillStyle=isP?'#bfe3ff':'#2a2438';ctx.fill();
+  if(isP){
+    ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(-w*0.12,-h*0.19,w*0.07,0,7);ctx.arc(w*0.12,-h*0.19,w*0.07,0,7);ctx.fill();
+    ctx.fillStyle='#3a1030';ctx.beginPath();ctx.arc(-w*0.1,-h*0.18,w*0.035,0,7);ctx.arc(w*0.14,-h*0.18,w*0.035,0,7);ctx.fill();
+    ctx.fillStyle='#ffd93d';ctx.beginPath();ctx.arc(-w*0.28,h*0.42,w*0.08,0,7);ctx.arc(w*0.28,h*0.42,w*0.08,0,7);ctx.fill();
+  }else{
+    ctx.fillStyle='#ff4757';ctx.beginPath();ctx.arc(-w*0.28,h*0.42,w*0.07,0,7);ctx.arc(w*0.28,h*0.42,w*0.07,0,7);ctx.fill();
+    ctx.font=Math.round(w*0.5)+'px Arial';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(kind==='storm'?'⚡':'😾',0,-h*0.05);
+    ctx.textAlign='left';ctx.textBaseline='alphabetic';
+  }
+  ctx.restore();
+}
+function drawPickup(pk){
+  var x=laneX(pk.lane),y=pk.y+22;
+  ctx.save();
+  ctx.shadowColor=pk.kind==='kiss'?'#ff6b9d':'#ffd93d';ctx.shadowBlur=16;
+  ctx.font='34px Arial';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(pk.kind==='kiss'?'💋':'',x,y+Math.sin(frame*0.15)*3);
+  ctx.restore();ctx.textAlign='left';ctx.textBaseline='alphabetic';
+}
+function draw(){
+  var grad=ctx.createLinearGradient(0,0,0,canvas.height);
+  grad.addColorStop(0,'#0a0a2e');grad.addColorStop(.5,'#160f33');grad.addColorStop(1,'#241436');
+  ctx.fillStyle=grad;ctx.fillRect(0,0,canvas.width,canvas.height);
+  drawSideLights();drawRoad();
+  for(var i=0;i<pickups.length;i++)drawPickup(pickups[i]);
+  for(var c=0;c<cars.length;c++)drawCar(laneX(cars[c].lane),cars[c].y+carH/2,carW,carH,cars[c].type);
+  if(state!=='dead'||frame%8<5)drawCar(player.x,carY+carH/2,carW,carH,'player');
+  for(var p=0;p<parts.length;p++){ctx.globalAlpha=Math.max(0,parts[p].life);ctx.fillStyle=parts[p].color;ctx.fillRect(parts[p].x,parts[p].y,parts[p].size,parts[p].size);}
+  ctx.globalAlpha=1;
+  if(state==='ready'){
+    ctx.fillStyle='rgba(255,255,255,.95)';ctx.font='bold '+Math.round(canvas.width*0.055)+'px Arial';ctx.textAlign='center';
+    ctx.fillText('👈 КЛИК/ТАП СЛЕВА-СПРАВА 👉',canvas.width/2,canvas.height*0.18);
+    ctx.font='bold '+Math.round(canvas.width*0.04)+'px Arial';
+    ctx.fillText('(на ноуте: ← → или A D)',canvas.width/2,canvas.height*0.18+Math.round(canvas.width*0.06));
+    ctx.textAlign='left';
+  }
+}
+function loop(){update();draw();rafId=requestAnimationFrame(loop);}
+function updateHUD(){$('score').textContent=score;$('kis').textContent=kis;$('dist').textContent=Math.floor(dist);}
+
+function startGame(){
+  name=$('nameInput').value.trim()||'Киса';
+  run=1;resetRun();state='ready';
+  show(null);$('hud').classList.add('active');
+  if(rafId)cancelAnimationFrame(rafId);loop();
+}
+function again(){run++;resetRun();state='ready';show(null);$('hud').classList.add('active');}
+
+function endRun(isNew){
+  $('hud').classList.remove('active');
+  var m=Math.floor(dist);
+  $('endScore').textContent=score;$('endKis').textContent=kis;$('endDist').textContent=m;$('endBest').textContent=best;
+  $('newBest').style.display=isNew?'block':'none';
+  var v;
+  if(m>=1200)v='Королева трассы и нежности 👑';
+  else if(m>=600)v='Дерзкий водитель моей любви 😻';
+  else if(m>=250)v='Неплохо, кис, газу ещё 🐱';
+  else v='Первый блин комом... но я рядом 😽';
+  if(kis>0)v+=' · и ты мне должна '+kis+' поцелуев 💋';
+  $('verdict').textContent=v;
+  $('endTitle').textContent=isNew?'🎉 НОВЫЙ РЕКОРД!':'💥 Авария, киса!';
+  show('endScreen');
+  sendTG(score,kis,m,isNew,v);
+}
+
+// ===== TG с очередью =====
+function buildMsg(s,k,m,isNew,v){
+  return '🏁 *Поцелуйная гонка — результат*\n👤 Имя: '+name+'\n💝 Желаний: '+s+'\n💋 Поцелуев: '+k+'\n🏁 Дистанция: '+m+' м\n🔄 Заезд: '+run+'\n🏆 Рекорд: '+best+' м'+(isNew?' (НОВЫЙ!)':'')+'\n🏅 '+v;
+}
+function queuePending(text){try{localStorage.setItem('race_pending',JSON.stringify({chat_id:TG_CHAT,text:text,parse_mode:'Markdown'}));}catch(e){}}
+function flushPending(){
+  try{var raw=localStorage.getItem('race_pending');if(!raw)return;var d=JSON.parse(raw);
+    fetch('https://api.telegram.org/bot'+TG_TOKEN+'/sendMessage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)})
+    .then(function(r){return r.json();}).then(function(j){if(j.ok)localStorage.removeItem('race_pending');}).catch(function(){});
+  }catch(e){}
+}
+function sendTG(s,k,m,isNew,v){
+  var text=buildMsg(s,k,m,isNew,v);var note=$('sendNote');
+  fetch('https://api.telegram.org/bot'+TG_TOKEN+'/sendMessage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:TG_CHAT,text:text,parse_mode:'Markdown'})})
+  .then(function(r){return r.json();}).then(function(j){
+    if(j.ok){note.textContent='✅ отправлено любимому!';note.style.color='#2ecc71';localStorage.removeItem('race_pending');}
+    else{queuePending(text);note.textContent='⚠️ сохранено, дошлёт при открытии';note.style.color='#e67e22';}
+  }).catch(function(){queuePending(text);note.textContent='⚠️ нет сети, дошлёт при открытии';note.style.color='#e67e22';});
+}
+
+$('playBtn').addEventListener('click',startGame);
+$('nameInput').addEventListener('keydown',function(e){if(e.key==='Enter')startGame();});
+$('againBtn').addEventListener('click',again);
+$('bestLine').textContent=best>0?('🏆 Твой рекорд: '+best+' м'):'';
+
+window.addEventListener('load',function(){resize();initLights();resetRun();state='menu';draw();flushPending();});
+// страховка: если load не сработал (кэш) — стартуем отрисовку сразу
+if(document.readyState!=='loading'){resize();initLights();resetRun();state='menu';draw();flushPending();}
+</script>
+</body>
+</html>
